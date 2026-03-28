@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: netwatch
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  ml_core:
+    build: ./backend/ml_core
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/ml_core:/app
+      - ./backend/scripts:/app/scripts
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  api_gateway:
+    build: ./backend/api
+    ports:
+      - "4000:4000"
+    env_file: .env
+    depends_on:
+      - postgres
+      - redis
+      - ml_core
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api_gateway
+
+volumes:
+  postgres_data:

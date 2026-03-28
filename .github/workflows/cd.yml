@@ -1,0 +1,30 @@
+name: NetWatch CD
+
+on:
+  workflow_run:
+    workflows: [NetWatch CI]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to server
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /opt/netwatch
+            git pull origin main
+            docker compose pull
+            docker compose up -d --build
+            docker compose exec ml_core python train.py --synthetic --n-samples 50000 --report
+            echo "Deployed at $(date)"
